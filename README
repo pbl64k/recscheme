@@ -1,4 +1,6 @@
-We can get folds and unfolds over algebraic datatypes for free.
+We can get folds and unfolds over algebraic datatypes for free. (But who in
+their right mind would want to jump through all the hoops? (Co-)recursion
+schemes should really be in the language out of the box.
 
 See also:
 
