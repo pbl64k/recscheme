@@ -14,3 +14,7 @@ Richard Bird, Oege de Moor, The Algebra of Programming
 
 Fritz Ruehr, The Evolution of a Haskell Programmer
 
+The ideas are scattered all over the place, but this implementation is
+based on the code from McBride's Clowns and Jokers, where it's but a
+stepping stone towards building something else entirely.
+
