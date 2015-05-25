@@ -7,10 +7,10 @@ data Prod x y z = Prod (x z) (y z)
 data Mu x = In { out :: x (Mu x) }
 
 instance Functor I where
-    fmap f = I . f . i
+    fmap = (I .) . (. i)
 
 instance Functor (K x) where
-    fmap f = K . k
+    fmap = const (K . k)
 
 instance (Functor x, Functor y) => Functor (Sum x y) where
     f `fmap` (SumL x) = SumL (f `fmap` x)
@@ -19,13 +19,17 @@ instance (Functor x, Functor y) => Functor (Sum x y) where
 instance (Functor x, Functor y) => Functor (Prod x y) where
     f `fmap` (Prod x y) = Prod (f `fmap` x) (f `fmap` y)
 
-f `appI` (I x) = f x
+appI :: (a -> b) -> I a -> b
+appI = (. i)
 
-f `appK` (K x) = f x
+appK :: (a -> b) -> K a c -> b
+appK = (. k)
 
+appSum :: (a c -> d, b c -> d) -> Sum a b c -> d
 (f, _) `appSum` (SumL x) = f x
 (_, g) `appSum` (SumR x) = g x
 
+appProd :: (a c -> b c -> d) -> Prod a b c -> d
 f `appProd` (Prod x y) = f x y
 
 -- Folds and unfolds for "free"!
@@ -36,6 +40,7 @@ cata f = f . ((f `cata`) `fmap`) . out
 ana :: Functor f => (a -> f a) -> a -> Mu f
 ana f = In . ((f `ana`) `fmap`) . f
 
+-- Lfix T. 1 + T
 type Nat = Mu (Sum (K ()) I)
 
 showNat :: Nat -> Integer
@@ -59,6 +64,7 @@ plus x = (((const x, (suc `appI`)) `appSum`) `cata`)
 mult :: Nat -> Nat -> Nat
 mult x = (((const zero, ((`plus` x) `appI`)) `appSum`) `cata`)
 
+-- Lfix T. 1 + A x T
 type List a = Mu (Sum (K ()) (Prod (K a) I))
 
 nil :: List a
