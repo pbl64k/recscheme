@@ -1,0 +1,16 @@
+We can get folds and unfolds over algebraic datatypes for free.
+
+See also:
+
+Philip Wadler, Recursive types for free!
+
+Erik Meijer, Maarten Fokkinga, Ross Patterson, Functional Programming with
+Bananas, Lenses, Envelopes and Barbed Wire
+
+Conor McBride, Clowns to the Left of me, Jokers to the Right: Dissecting
+Data Structures
+
+Richard Bird, Oege de Moor, The Algebra of Programming
+
+Fritz Ruehr, The Evolution of a Haskell Programmer
+
