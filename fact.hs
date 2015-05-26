@@ -85,3 +85,21 @@ fact = prod . downto1
 factorial :: Integer -> Integer
 factorial = showNat . fact . readNat
 
+-- Can we do rose trees?
+-- Sadly, List cannot be made into a functor without some fugly newtype juggling, but [] already is
+-- The principle is exactly the same, though.
+
+-- Lfix T. A x List T
+type Rose a = Mu (Prod (K a) [])
+
+-- ...and voila, our `cata` and `ana` just work.
+
+divtree :: Integer -> Rose Integer
+divtree = ((\n -> Prod (K n) (divisors n)) `ana`)
+
+flatten :: Rose Integer -> [Integer]
+flatten = (((\x xs -> (id `appK` x) : concat xs) `appProd`) `cata`)
+
+divisors :: Integer -> [Integer]
+divisors n = [x | x <- [2 .. n `div` 2], n `mod` x == 0]
+
