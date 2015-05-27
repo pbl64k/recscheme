@@ -1,83 +1,88 @@
+{-# LANGUAGE TypeOperators #-}
+
 import Data.Functor
 
-data I x = I { i :: x }
-data K x y = K { k :: x }
-data Sum x y z = SumL (x z) | SumR (y z)
-data Prod x y z = Prod (x z) (y z)
-data Mu x = In { out :: x (Mu x) }
+data Id x = I { i :: x }
+data Const x y = K { k :: x }
+data (x :+: y) z = SumL (x z) | SumR (y z)
+data (x :*: y) z = Prod (x z) (y z)
+data Fix x = In { out :: x (Fix x) }
 
-instance Functor I where
+data Zero
+type One = Const ()
+
+instance Functor Id where
     fmap = (I .) . (. i)
 
-instance Functor (K x) where
+instance Functor (Const x) where
     fmap = const (K . k)
 
-instance (Functor x, Functor y) => Functor (Sum x y) where
+instance (Functor x, Functor y) => Functor (x :+: y) where
     f `fmap` (SumL x) = SumL (f `fmap` x)
     f `fmap` (SumR y) = SumR (f `fmap` y)
 
-instance (Functor x, Functor y) => Functor (Prod x y) where
+instance (Functor x, Functor y) => Functor (x :*: y) where
     f `fmap` (Prod x y) = Prod (f `fmap` x) (f `fmap` y)
 
-appI :: (a -> b) -> I a -> b
+appI :: (a -> b) -> Id a -> b
 appI = (. i)
 
-appK :: (a -> b) -> K a c -> b
+appK :: (a -> b) -> Const a c -> b
 appK = (. k)
 
-appSum :: (a c -> d, b c -> d) -> Sum a b c -> d
+appSum :: (a c -> d, b c -> d) -> (a :+: b) c -> d
 (f, _) `appSum` (SumL x) = f x
 (_, g) `appSum` (SumR x) = g x
 
-appProd :: (a c -> b c -> d) -> Prod a b c -> d
+appProd :: (a c -> b c -> d) -> (a :*: b) c -> d
 f `appProd` (Prod x y) = f x y
 
 -- Folds and unfolds for "free"!
 
-cata :: Functor f => (f a -> a) -> Mu f -> a
-cata f = f . ((f `cata`) `fmap`) . out
+cata :: Functor f => (f a -> a) -> Fix f -> a
+cata f = f . (fmap $ cata f) . out
 
-ana :: Functor f => (a -> f a) -> a -> Mu f
-ana f = In . ((f `ana`) `fmap`) . f
+ana :: Functor f => (a -> f a) -> a -> Fix f
+ana f = In . (fmap $ ana f) . f
 
 -- Lfix T. 1 + T
-type Nat = Mu (Sum (K ()) I)
+type Nat = Fix (One :+: Id)
 
 showNat :: Nat -> Integer
-showNat = (((const 0, (succ `appI`)) `appSum`) `cata`)
+showNat = cata $ appSum (const 0, appI succ)
 
 readNat :: Integer -> Nat
-readNat = ((\x -> if x == 0 then SumL (K ()) else SumR (I (pred x))) `ana`)
+readNat = ana (\x -> if x == 0 then SumL $ K () else SumR $ I $ pred x)
 
 zero :: Nat
-zero = (In . SumL . K) ()
+zero = In $ SumL $ K ()
 
 suc :: Nat -> Nat
 suc = In . SumR . I
 
 prd :: Nat -> Nat
-prd = ((const zero, (id `appI`)) `appSum`) . out
+prd = appSum (const zero, i) . out
 
 plus :: Nat -> Nat -> Nat
-plus x = (((const x, (suc `appI`)) `appSum`) `cata`)
+plus x = cata $ appSum (const x, appI suc)
 
 mult :: Nat -> Nat -> Nat
-mult x = (((const zero, ((`plus` x) `appI`)) `appSum`) `cata`)
+mult x = cata $ appSum (const zero, appI (`plus` x))
 
 -- Lfix T. 1 + A x T
-type List a = Mu (Sum (K ()) (Prod (K a) I))
+type List a = Fix (One :+: (Const a :*: Id))
 
 nil :: List a
-nil = (In . SumL . K) ()
+nil = In $ SumL $ K ()
 
 cons :: a -> List a -> List a
 cons x = In . SumR . Prod (K x) . I
 
 downto1 :: Nat -> List Nat
-downto1 = ((((const (SumL (K ())), ((\x -> SumR (Prod (K (suc x)) (I x))) `appI`)) `appSum`) . out) `ana`)
+downto1 = ana (appSum (const $ SumL $ K (), appI (\x -> SumR $ Prod (K $ suc x) (I x))) . out)
 
 prod :: List Nat -> Nat
-prod = (((const (suc zero), ((\x y -> (id `appK` x) `mult` (id `appI` y)) `appProd`)) `appSum`) `cata`)
+prod = cata $ appSum (const $ suc zero, appProd (\x y -> (k x) `mult` (i y)))
 
 fact :: Nat -> Nat
 fact = prod . downto1
@@ -90,16 +95,21 @@ factorial = showNat . fact . readNat
 -- The principle is exactly the same, though.
 
 -- Lfix T. A x List T
-type Rose a = Mu (Prod (K a) [])
+type Rose a = Fix (Const a :*: [])
 
 -- ...and voila, our `cata` and `ana` just work.
 
 divtree :: Integer -> Rose Integer
-divtree = ((\n -> Prod (K n) (divisors n)) `ana`)
+divtree = ana (\n -> Prod (K n) (divisors n))
 
 flatten :: Rose Integer -> [Integer]
-flatten = (((\x xs -> (id `appK` x) : concat xs) `appProd`) `cata`)
+flatten = cata $ appProd (\x xs -> k x : concat xs)
 
 divisors :: Integer -> [Integer]
 divisors n = [x | x <- [2 .. n `div` 2], n `mod` x == 0]
+
+main = do
+    putStrLn $ show $ showNat ((readNat 3) `mult` (readNat 7))
+    putStrLn $ show $ factorial 7
+    putStrLn $ show $ flatten $ divtree 72
 
